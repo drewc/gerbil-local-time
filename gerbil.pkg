@@ -1,0 +1,3 @@
+;; local-time package, relies on clan.
+(package: local-time
+ depend: ("github.com/fare/gerbil-utils"))
