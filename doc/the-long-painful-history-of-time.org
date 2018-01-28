@@ -1,0 +1,1009 @@
+#+TITLE: The Long, Painful History of Time
+#+OPTIONS: num:nil
+
+: Erik Naggum
+: Naggum Software
+: Oslo, Norway
+
+http://naggum.no/lugm-time.html
+
+    ABSTRACT The programming language Common Lisp offers a few
+    functions to support the concept of time as humans experience it,
+    including GET-UNIVERSAL-TIME, ENCODE-UNIVERSAL-TIME,
+    DECODE-UNIVERSAL-TIME, and GET-DECODED-TIME. These functions
+    assume the existence of a timezone and a daylight saving time
+    regime, such that they can support the usual expression of time in
+    the environment in which a small number of real-life applications
+    run. The majority of applications, however, need more support to
+    be able to read and write dates and times, calculate with time,
+    schedule events at specific clock times daily, and work with
+    several time zones and daylight saving time regimes. This paper
+    discusses some of the problems inherent in processing time
+    suitable to humans and describes a solution employed by the author
+    in a number of applications, the LOCAL-TIME concept.
+
+
+* 0 Introduction
+
+The measurement of time has a very long history, dating back to the
+first records of human civilization. Yet, the archeological evidence
+suggests that the concept of time evolved no further than ordinary
+human needs, and any notion of time remained confined to a fairly
+short time frame, such as a lifetime past and future. Expressions of
+measurements of time were brief and imprecise, rife with the numerous
+and nefarious assumptions humans bring into their communication,
+consistent with our tendency to suppress information believed to be
+redundant.
+
+For instance, everyone knows which century they are in or that some
+two-digit year refers to. Until computers came along, the assumptions
+held by people were either recoverable from the context or shared by
+contemporary communicators. After computers came to store information
+for us, we still held onto the context as if the computers were as
+able to recover it as we are. Quite obviously, they aren't, and in
+about three months, we will see whether other humans were indeed able
+to recover the context left unstated by other humans when they wrote
+down their dates with two digits and assumed it would never be a
+problem. The infamous Y2K problem is one of the few opportunities
+mankind will get to tally the costs of lack of precision in our common
+forms of communication. The lesson learned will not be that our
+notations of time need to be precise and include their context, unless
+the general public stops refusing to be educated in the face of dire
+experience. That so much attention has been granted this silly problem
+is fortunate for those of us who argue against legacy notations of
+time. However, the inability of most people to deal with issues of
+such extraordinary importance when they look "most harmless" means
+that those who do understand them must be inordinately careful in
+preparing their information such that loss of real information can be
+minimized.
+
+The basic problem with time is that we need to express both time and
+place whenever we want to place some event in time and space, yet we
+tend to assume spatial coordinates even more than we assume temporal
+coordinates, and in the case of time in ordinary communication, it is
+simply left out entirely. Despite the existence of time zones and
+strange daylight saving time regimes around the world, most people are
+blithely unaware of their own time zone and certainly of how it
+relates to standard references. Most people are equally unaware that
+by choosing a notation that is close to the spoken or written
+expression of dates, they make it meaningless to people who may not
+share the culture, but can still read the language. It is unlikely
+that people will change enough to put these issues to rest, so
+responsible computer people need to address the issues and resist the
+otherwise overpowering urge to abbreviate and drop context.
+
+This paper is almost all about how we got ourselves into trouble by
+neglecting to think about time frames longer than a human lifetime,
+how we got all confused by the difference between time as an orderly
+concept in science and a mess in the rest of human existence, and how
+we have missed every opportunity to fix the problems. This paper
+proposes a fix to the most glaring problems in a programming language
+that should not have been left without a means to express time for so
+long.
+
+* 1 Scientific Time
+
+How long does it take the earth to face the Sun at the same angle?
+This simple question has a definite and fairly simple scientific
+answer, and from this answer, we can work out a long list of answers
+about what time is and how we want to deal with astronomical
+events. The SI units (Système International d'Unités), probably better
+known as "metric units", define the second as the fundamental unit of
+time, and this, too, has a very good scientific definition. Time
+progresses continuously and is only chopped up into units for human
+convenience. Agreement on a single reference point within a scientific
+community has always been easy, and it is useful to count basic units,
+like days in the (Modified) Julian Day system, or seconds since some
+arbitrary epoch in computers.
+
+Scientific time also lends itself to ease of computation; after all,
+that is what we do with it. For instance, we have a world-wide
+standard for time, called the Coordinated Universal Time, or UTC. (The
+C used to be subscripted, UTC, just like the digits in UT0 and UT1
+which are universal time concepts with slightly different reference
+points, but "UTC" has become the preferred form.) Scientific time
+naturally has origin 0, as usual with scientific measures, even though
+the rest of human time notations tend to have origin 1, the problems
+of which will be treated below.
+
+Most computer-related references to time deal with periods of time,
+which lend themselves naturally to use scientific time, and therefore,
+it makes sense to most programmers to treat the period of time from
+some epoch until some other time to be the best way to express said
+other time. This is the path taken by Common Lisp in its
+UNIVERSAL-TIME concept, with time 0 equal to 1900-01-01 00:00:00 UTC,
+and the Unix time concept, with time 0 equal to 1970-01-01 00:00:00
+UTC. This approach works well as long as the rules for converting
+between relative and absolute time are stable. As it turns out, they
+are not.
+
+Not all languages and operating systems use this sensible an
+approach. Some have used local time as the point of reference, some
+use decoded local time as the reference, and some use hardware clocks
+that try to maintain time suitable for direct human consumption. There
+is no need to make this issue more complex than it already is, so they
+will not be granted any importance.
+
+
+* 2 Political Time
+
+How long does it take for the clock to show the same value? The answer
+to this question is only weakly related to the time the planet takes
+to make a complete rotation. Normally, we would say the political
+rotation takes 24 hours, just like the scientific, but one day out of
+the year, it takes only 23 hours, and another day out of the year, it
+takes 25 hours, thanks to the wonders of daylight saving time. Which
+days these are is a decision made by politicians. It used to be made
+by the military to conserve fuel, but was taken over by labor unions
+as a means to get more daylight in the workers' spare time, and most
+countries have gone through an amazing list of strange decision-making
+in this area during this century. Short of coming to their senses and
+abolishing the whole thing, we might expect that the rules for
+daylight saving time will remain the same for some time to come, but
+there is no guarantee. (We can only be glad there is no daylight loan
+time, or we would face decades of too much daylight, only to be faced
+with a few years of total darkness to make up for it.)
+
+Political time is closely related to territory, power, and collective
+human irrationality. There is no way you can know from your location
+alone which time zone applies at some particular point on the face of
+the earth: you have to ask the people who live there what they have
+decided. This is very different from scientific time, which could tell
+you with great ease and precision what the mean sidereal time at some
+location should be. In some locations, this is as much as three hours
+off from what the local population has decided, or has had decided for
+them. The Sun is in zenith at noon at very few places on earth,
+instead being eclipsed or delayed by political decisions where the
+randomness never ends.
+
+Yet, it is this political time that most people want their computers
+to produce when they ask for the date or the time of day, so software
+will have to comply with the randomness and produce results consistent
+with political decisions. The amount of human input into this process
+is very high, but that is the price we have to pay for our willingness
+to let politicians dictate the time. However, once the human input has
+been provided, it is annoying to find that most programming languages
+and supporting systems do not work with more than one timezone at a
+time, and consequently do not retain timezone information with time
+data.
+
+The languages we use tend to shape the ideas we can talk about. So,
+too, the way we write dates and times influence our concepts of time,
+as they were themselves influenced by the way somebody thought about
+time a long time ago. Calendars and decisions like which year is the
+first, when the year starts, and how to deal with astronomical
+irregularities were made so long ago that the rationale for them has
+not survived in any form, but we can still look at what we have and
+try to understand. In solving the problem of dealing with time in
+computers, a solid knowledge of the legacy we are attending to is
+required.
+
+* 3 Notations for Time
+
+The way we write down time coordinates appears to have varied little
+over the years in only one respect: we tend to write them differently
+depending on the smallest perceived unit of time that needs to be
+communicated. For instance, it seems sufficiently redundant to include
+AD or BC in the dates of birth of contemporary people that they are
+always omitted. Should some being with age >2000 years come to visit
+us, it is also unlikely that writing its date of birth correctly would
+be a pressing concern. However, we tend to include these markers for
+the sign of the year when the possibility of ambiguity reaches a
+certain level as determined by the reader. This process is itself
+fraught with ambiguity and inconsistency, but when computers need to
+deal with dates this far back, it does not seem worthwhile to
+calculate them in terms of standard reference points, so we can ignore
+the problem for now, but may need to deal with it if a system of
+representation is sufficiently useful to be extended to the ancient
+past.
+
+Not only do we omit information that is deemed redundant, it is not
+uncommon for people to omit information out of sheer laziness. A
+particularly flagrant example of the omission of information relative
+to the current time is the output from the Unix ls program which lists
+various information about files. The customary date and time format in
+this program is either month-day-hour-minute or month-day-year. The
+cutoff for tolerable precision is six months ago, which most
+implementations approximate with 180 days. This reduction in precision
+appears to have been motivated by horizontal space requirements, a
+necessary move after wasting a lot of space on irrelevant information,
+but for some reason, precision in time always suffers when people are
+short of space.
+
+The infamous Y2K problem, for instance, is said to have started when
+people wanted to save two columns on punched cards, but there is
+strong evidence of other, much better alternatives at the time, so the
+decision to lose the century was not predicated on the need for space,
+but rather on the culturally acceptable loss of information from time
+coordinates. The details of this mess are sufficiently involved to
+fill a separate paper, so the conclusion that time loses precision
+first when in need or perceived need of space should be considered
+supported by the evidence.
+
+** 3.1 Natural-Language Notations
+
+People tend to prefer words to numbers, and go out of their way to
+name things. Such names are frequently symbolic because they are
+inherently arbitrary, which implies that we can learn much from
+studying what people call numbers. (French has a number which means
+"arbitrarily many": 36, used just like English "umpteen", but it is
+fascinating that a number has meaning like that. Other numbers with
+particular meaning include 69, 666, and 4711. The number 606 has been
+used to refer to arsphenamine, because it was the 606th compound
+tested by Paul Ehrlich to treat syphilis.) In the present context, the
+names of the Roman months have been adopted by all Western languages,
+while the names of days of the week have more recent and diverse
+names, probably because weeks are a fairly recent concept.
+
+Using names for numeric entities complicates processing a natural
+language specification of time tremendously, yet this is what people
+seem more comfortable with. In some cultures, months have only names,
+while in others, they are nearly always written as numbers. The way
+the names of months and the days of the week are abbreviated varies
+from language to language, as well, so software that wants to be
+international needs to maintain a large repository of names and
+notations to cater to the vanity of human users. However, the names
+are not the worst we have to deal with in natural language notations.
+
+Because dates and times are frequently spoken and because the written
+forms are often modeled after the spoken, we run into the problem of
+ordering the elements of time and the omission of perceived redundancy
+becomes a much more serious problem, because each language and each
+culture have handled these problems so differently. The orders in use
+for dates are
+
+    + year-month-day
+    + day-month-year
+    + month-day-year
+    + day-month
+    + month-day
+    + year-month
+    + month-year
+
+As long as the year is zero or greater than 31 or the day greater than
+12, it is usually possible to disambiguate these orders, but we are
+about to experience renewed problems in 2001, when the year will
+probably be still be written with two digits by some people regardless
+of the experience of mankind as a whole at 2000-01-01 00:00:00. We
+live in interesting times, indeed.
+
+Time is fortunately specified with a uniform hour-minute-second order,
+but the assumption of either AM or PM even in cultures where there is
+no custom for their specification provides us with an ambiguity that
+computers are ill equipped to deal with. This and other historic
+randomness will be treated in full below.
+
+Most of the time people refer to is in their immediate vicinity, and
+any system intended to capture human-friendly time specifications will
+need to understand relative times, such as "yesterday", "this time
+tomorrow", "two hours ago", "in fifteen minutes". All of these forms
+vary considerably from culture to culture and from language to
+language, making the process of reading these forms as input
+non-trivial. The common forms of expression for periods of time is
+also fuzzy in human communication, with units that fail to convert to
+intervals of fixed length, but instead are even more context-sensitive
+than simple points in time.
+
+** 3.2 Language-Neutral Notations
+
+Various attempts have been made to overcome the problems of
+human-to-human forms of communication between human and machine and in
+machine-to-machine communication. Machine-to-machine communication
+generally falls into one of three categories:
+
+    1) Naïve binary
+    2) Formatted or encoded binary
+    3) Character sequences (text)
+
+Binary formats in general suffer from a huge number of problems that
+there is little value in discussing here, but it is worth noting that
+a binary format that is as robust as a textual format is frequently
+just as verbose as a textual format, so in the interest of robustness
+and legibility, this discussion will restrict itself to textual
+formats
+
+Obviously, a language-neutral notation will have to consist of
+standardized elements and possibly codes. Fortunately, a standard like
+this already exists: ISO 8601. Since all the work with a good
+language-neutral notation has already been done, it would be
+counter-productive in the extreme to reinvent one. However, ISO 8601
+is fairly expensive from the appropriate sources and also chock full
+of weird options, like most compromise standards, so in the interest
+of solving some problems with its use, only the extended format of
+this standard will be employed in this paper.
+
+A language-neutral notation will need to satisfy most, if not all, of
+the needs satisfied by natural language notations, but some latitude
+is necessary when dealing with relative times -- after all, the
+purpose of the language-neutral notation is to remove ambiguity and
+make assumptions more if not completely explicit. ISO 8601 is
+sufficient to cover these needs:
+
+    + absolute positions in time
+    + duration
+    + period with absolute start and end
+    + period with absolute start or end and duration
+
+The needs not covered are mostly related to user convenience with respect to the present and absolute positions in time in its immediate vicinity. E.g., the omission of the date when referring to yesterday, tomorrow, the most recent occurrence of a time of day, and the forthcoming occurrence of a time of day. To make this more convenient, the notation employed in the LOCAL-TIME concept described below has special syntax for these relative times.
+
+The full, extended format of ISO 8601 is as follows:
+
+    : 1999-10-11T11:10:30,5-07:00
+
+The elements are, in order:
+
+    1) the year with four digits
+    2) a hyphen (omitted in the basic format)
+    3) the month with two digits
+    4) a hyphen (omitted in the basic format)
+    5) the day of month with two digits
+    6) the letter T to separate date and time
+    7) the hour in the 24-hour system with two digits
+    8) a colon (omitted in the basic format)
+    9) the minute with two digits
+    10) a colon (omitted in the basic format)
+    11) the second with two digits
+    12) a comma
+    13) the fraction of the second with unlimited precision
+    14) a plus sign or hyphen (minus) to indicate sign of time zone
+    15) the hours of the time zone with two digits
+    16) a colon (omitted in the basic format)
+    17) the minutes of the time zone with two digits
+
+The rules for omission of elements are quite simple. Elements from the
+time of day may be omitted from the right and take their immediately
+preceding delimiter with them. Elements from the date may be omitted
+from the left, but leave the immediately following delimiter
+behind. When the year is omitted, it is replaced by a hyphen. Elements
+of the date may also be omitted from the left, provided no other
+elements follow, in which case they take their immediately preceding
+delimiter with them. The letter T is omitted if the whole of the time
+of day or the whole of the date are omitted. If an element is omitted
+from the left, it is assumed to be the current value. (In other words,
+omitting the century is really dangerous, so I have even omitted the
+possibility of doing so.) If an element is omitted from the right, it
+is assumed to cover the whole range of values and thus be
+indeterminate.
+
+Every element in the time specification needs to be within the normal bounds. There is no special consideration for leap seconds, although some might want to express them using this standard.
+
+A duration of time has a separate notation entirely, as follows:
+
+ :   P1Y2M3DT4H5M6S>
+ :   P7W
+
+The elements are, in order:
+
+    1) the letter P to indicate a duration
+    2) the number of years
+    3) the letter Y to indicate years
+    4) the number of months
+    5) the letter M to indicate months
+    6) the number of days
+    7) the letter D to indicate days
+    8) the letter T to separate dates from times
+    9) the number of hours
+    10) the letter H to indicate hours
+    11) the number of minutes
+    12) the letter M to indicate minutes
+    13) the number of seconds
+    14) the letter S to indicate seconds
+
+or for the second form, usually used alone
+
+    1) the letter P to indicate a duration
+    2) the number of weeks
+    3) the letter W to indicate weeks
+
+Any element (number) may be omitted from this specification and if so
+takes its following delimited with it. Unlike the absolute time
+format, there is no requirement on the number of digits, and thus no
+requirement for leading zeros.
+
+A period of time is indicated by two time specifications, at least one
+of which has to be absolute, separated by a single solidus (slash),
+and has the general forms as follows:
+
+:    start/end
+:    start/duration
+:    duration/end
+
+the end form may have elements of the date omitted from the left with
+the assumption that the default is the corresponding value of the
+element from the start form. Omissions in the start form follow the
+normal rules.
+
+The standard also has specifications for weeks of the year and days of
+the week, but these are used so rarely and are aesthetically
+displeasing so are gracefully elided from the presentation.
+
+When discussing the read/write syntax of the ~LOCAL-TIME~ concept below,
+the above formats will be employed with very minor modifications and
+extensions.
+
+* 4 Geography
+
+It is amusing that when people specify a time, they tend to forget
+that they looked at their watches or asked other time-keeping devices
+at a particular geographic location. The value they use for "current
+time" is colored by this location so much that the absence of a
+location at which we have the current time, renders it completely
+useless -- it could be specified in any one of the about 30
+(semantically different) timezones employed around the planet. This is
+particularly amusing with statements you find on the web:
+
+:    This page was updated 7/10/99 2:00 AM.
+
+This piece of information is amazingly useless, yet obviously not so
+to the person who knows where the machine is located and who wrote it
+in the first place. Only by monitoring for changes to this statement
+does it have any value at all. Specifications of time often has this
+purpose, but the belief that they carry information, too, is quite
+prevalent. The only thing we know about this time specification is
+that it was made in the past, which may remove most of the ambiguity,
+but not quite all -- it could be 1999-07-10.
+
+The geographical origin of a time specification is in practice
+necessary to understand it. Even with the standard notation described
+above, people will want to know the location of the
+time. Unfortunately, there is no widely adopted standard for
+geographical locations. Those equipped with GPS units may use ICBM or
+grid coordinates, but this is almost as devoid of meaning as raw IP
+addresses on the Internet. Above all, geography is even more rife with
+names and naming rules that suffer from translation than any other
+information that cries for a precise standard.
+
+Time zones therefore double as indicators of geographical location,
+much to the chagrin of anyone who is not from the same location,
+because they use names and abbreviations of names with local
+meaning. Of course. Also, the indication of the daylight saving time
+in the timezone is rather amusing in the probably unintentional
+complexity they introduce. For instance, the Middle or Central
+European Time can be abbreviated MET or CET, but the "summer time" as
+it is called here is one of MEST, CEST, MET DST, or CET DST. Add to
+this that the "S for summer" in the former two choices is often
+translated, and then we have the French.
+
+The only good thing about geography is that most names can be
+translated into geographical coordinates, and a mapping from
+coordinates to time zone and daylight saving time rules is fairly easy
+to collect, but moderately difficult to maintain. This work has been
+done, however, and is distributed with most Unix systems these days,
+most notably the free ones, for some value of "free". In order for a
+complete time representation to work fully with its environment,
+access to this information is necessary. The work on the ~LOCAL-TIME~
+concept includes an interface to the various databases available under
+most Unix systems.
+
+* 5 Perspective
+
+An important part of the Y2K problem has been that the information
+about the perspective on the time stored was lost. Trivialities like
+the fact that people were born in the past, bills were paid in the
+past and fall due in the future, deliveries will be made in the
+future, etc, and most of the time, meaningful specifications of time
+have hard boundaries that they cannot cross. Few people have problems
+with credit cards that expire 02/02, say. This was very obviously not
+1902-02. The perspective we bring to time specifications usually last
+beyond the particular time specified.
+
+When dealing with a particular time, it is therefore necessary to
+know, or to be told, whether it refers to the past or the future, and
+whether the vantage point is different from the present. If, for
+instance, a delivery is due 10/15/99, and it fails to be delivered
+that day, only a computer would assume that it was now due
+2099-10-15. Unfortunately, there is no common practice in this area at
+all, and most people are satisfied with a tacit assumption. That is in
+large part what caused the Y2K problem to become so enormously
+expensive to fix. Had the assumed, but now missing information been
+available, the kinds of upgrades required would have been different,
+and most likely much less expensive.
+
+There is more to the perspective than just past and future,
+however. Most computer applications that are concerned with time are
+so with only one particular time: the present. We all expect a log
+file to be generated along with the events, and that it would be
+disastrous if the computer somehow recorded a different time than the
+time at which an event occurred, or came back to us and revised its
+testimony because it suddenly remembered it better. Modern society is
+disproportionately dependent on a common and coordinated concept of
+the present time, and we have increasingly let computers take care of
+this perspective for us. Telephones and computers, both voice and
+electronic radio broadcasts, watches, wall clocks, the trusty old time
+clocks in factories where the workers depended on its accuracy, they
+all portray this common concept of a coordinated understanding of
+which time it is. And they all disagree slightly. A reportedly Swiss
+saying goes: "A man with one clock knows the time. A man with two
+clocks does not."
+
+Among the many unsolved problems facing society is an infrastructure
+for time-keeping that goes beyond individual, uncoordinated providers,
+and a time-keeping technology that actually works accurately and is so
+widely available that the differences in opinion over what time it is
+can be resolved authoritatively. The technology is actually here and
+the infrastructure is almost available to everyone, but it is not used
+by the multitude of purported sources of the current time. On the
+Internet, NTP> (the Network TIme Protocol) keeps fully connected
+systems in sync, and most telecommunications and energy providers have
+amazingly accurate clocks, but mere mortals are still left with
+alarming inaccuracies. This fact alone has a tendency to reduce the
+interest in accurate representation of time, for the obvious reason
+that the more accurate the notation and representation, the less
+trustworthy the value expressed.
+
+* 6 Calculations with Time
+
+The notation for duration and periods bounded by one absolute position
+in time and one duration described above have intuitive meaning, but
+when pressed for actual meaning, suffer somewhat from the distressing
+effects of political time. For instance, a period of one year that
+starts ~1999-03-01~ would end on ~2000-02-29~ or ~2000-03-01~ with
+equal probability of being correct. More common problems occur with
+the varying lengths of months, but those are also more widely
+understood and the heuristics are in place to deal with them.
+
+Less obvious is the problem of adding one day to a particular time of
+day. This was the original problem that spurred the development of the
+~LOCAL-TIME~ concept and its implementation. In brief, the problem is
+to determine which two days of the year the day is not 24 hours
+long. One good solution is to assume the day is 24 hours long and see
+if the new time has a different timezone than the original time. If
+so, add the difference between the timezones to the internal
+time. This, however, is not the trivial task it sounds like it should
+be.
+
+The first complication is that none of the usual time functions can
+report the absolute time that some timezone identifier will cause a
+change in the value of timezone as applicable to the time of
+day. Resolving this complications means that we do not have to test
+for a straddled timezone boundary the hard way with every calculation,
+but could just compare with the edge of the current timezone. Most
+software currently does this the hard way, including the Unix ~cron~
+scheduler. However, if we accept the limitation that we can work with
+only one timezone at a time, this becomes much less of a problem, so
+Unix and C people tend to ignore this problem.
+
+The second complication is that there really is no way around working
+with an internal time representation in any calculation -- attempts to
+adjust elements of a decoded time generally fail, not only because
+programmers are forgetful, but also because the boundary conditions
+are hard to enumerate.
+
+Most often, however, calculations fall into two mutually exclusive
+categories:
+
+    1) calculations with the time of day possibly including days
+    2) calculations with the date with no concept of a time of day
+
+When time is represented internally in terms of seconds since an
+epoch, only the former is easy -- the latter is irrevocably linked
+with all the timezone problems. The latter may in particular be
+calculated without reference to timezones at all, and indeed should be
+conducted in UTC. As far as the author knows, there are no tools or
+packages available in modern programming languages or environments
+that provide significant support for calculations with dates apart
+from calculation with times of day -- these are usually deferred to
+the application-level, and appear not to have been solved as far as
+the application programmer is concerned.
+
+
+* 7 Historic Randomness
+
+The Roman tradition of using Ante Meridiem and Post Meridiem to refer
+to the two halves have survived into English, despite the departure
+from the custom of changing the day of the month at noon. The Meridiem
+therefore has a very different role in modern usage than in ancient
+usage. This legacy notation also carries a number system that is
+fairly unusual. As seen from members of the 24-hour world, the order
+12,1,2,...11,12,1,2,...,11 as mapped onto 0,1,2...,23 is not only
+confusing, it is nearly impossible to make people believe that 13
+hours have elapsed from 11 AM to 12 AM. For instance, several
+Scandinavian restaurants are open only 1 hour a day to tourists from
+the world of the 12-hour clock, but open 13 hours a day to natives of
+the world of the 24-hour clock.
+
+The Roman tradition of starting the year in the month of March has
+also been lost. Most agrarian societies were far more interested in
+the onset of spring than in the winter solstice, even though various
+deities were naturally celebrated when the sun returned Most calendars
+were designed by people who made no particular effort to be general or
+accurate outside their own lifetime or needs, but Julius Cæsar decided
+to move the Roman calendar back two months, and thus it came to be
+known as the Julian calendar. This means that month number 7, 8, 9,
+and 10 suddenly came in as number 9, 10, 11, and 12, but kept their
+names: September, October, November, December. This is of interest
+mostly to those who remember their Latin but far more important was
+the decision to retain the leap day in February. In the old calendar,
+the leap day was added at the end of the year, as makes perfect sense,
+when the month was already short, but now it is squeezed into the
+middle of the first quarter, complicating all sorts of calculations,
+and affecting how much people work. In the old days, the leap day was
+used as an extra day for the various fertility festivities. You would
+just have to be a cæsar to find this unappealing.
+
+The Gregorian calendar improved on the quadrennial leap years in the
+Julian calendar by making only every fourth centennial a leap year,
+but the decision was unexpectedly wise for a calendar decision. It
+still is not accurate, so in a few thousand years, they may have to
+insert an extra leap day the way we introduce leap seconds now, but
+the simplicity of the scheme is quite amazing: a 400-year cycle not
+only starts ~2000-03-01~ (as it did ~1600-03-01~), it contains an even
+number of weeks: 20,871. This means that we can make do with a single
+400-year calculation for all time within the Gregorian calendar with
+respect to days of week, leap days, etc. Pope Gregory XIII may well
+have given a similar paper to this one to another unsuspecting
+audience that probably also failed to appreciate the elegance of his
+solution., and 400 more years will pass before it is truly
+appreciated.
+
+Other than the unexpected elegance of the Gregorian calendar, the
+world is now quite fortunate to have reached consensus on its
+calendars. Other calendars are still used, but we now have a global
+reference calendar with complete convertibility. This is great news
+for computers. It is almost as great news as the complete
+intercurrency convertibility that the monetary markets achieved only
+as late as 1992. Before that time, you could wind up with a different
+amount of money depending on which currencies you traded obscure
+currencies like the ruble through. The same applied to calendars: not
+infrequently, you could wind up on different dates according as you
+converted between calendar systems, similar to the problem of adding a
+year to February 29 any year and then subtracting a year.
+
+* 8. The LOCAL-TIME Concept
+
+The groundwork should now have been laid for the introduction of the
+several counter-intuitive decisions made in the design of the
+~LOCAL-TIME~ concept and its implementation.
+
+** 8.1 Time Elements as Fixnums
+
+Unix time has the "advantage" that it is representable as a 32-bit
+machine integer. It has the equal disadvantage of not working if the
+time is not representable as a 32-bit machine integer, and thus can
+only represent times in the interval
+~1901-12-13T20:45:52/2038-01-19T03:14:07~. If we choose an unsigned
+machine integer, the interval is
+~1970-01-01T00:00:00/2106-02-07T06:28:16~. The Common Lisp
+~UNIVERSAL-TIME~ concept has the disadvantage that it turned into a
+bignum on most 32-bit machines on ~1934-01-10T13:37:04~ and runs out of
+32 bits two years earlier than Unix time, on ~2036-02-07T06:28:16~. I
+find these restrictions to be uncomfortable, regardless of whether
+there are any 32-bit computers left in 2036 to share my pain.
+
+Bignum operations are generally far more expensive than fixnum
+operations, and they have to be, regardless of how heavily the Common
+Lisp implementation has optimized them. It therefore became a
+pronounced need to work with fixnums in time-intensive
+applications. The decision fell on splitting between days and seconds,
+which should require no particular explanation, other than to point
+out that calculation with days regardless of the time of day is now
+fully supported and very efficient.
+
+Because we are very close to the beginning of the next 400-year
+leap-year cycle, thanks to Pope Gregory, day 0 is defined to be
+~2000-03-01~, which much less arbitrary than other systems, but not
+obviously so. Each 400-year cycle contains 146,097 days, so an
+arbitrary decision was made to limit the day to a maximal negative
+value of -146,097, or ~1600-03-01~. This can be changed at the peril of
+accurately representing days that do not belong to the calendar used
+at the time. No attempt has been made to accurately describe dates not
+belonging to the Gregorian calendar, as that is an issue resolvable
+only with reference to the borders between countries and sometimes
+counties at the many different times throughout history that monarchs,
+church leaders, or other power figures decided to change to the
+Gregorian calendar. Catering to such needs is also only necessary with
+dates prior to the conversion of the Russian calendar to Gregorian, a
+decision made by Lenin as late as 1918, or any other conversion, such
+as 1582 in most of Europe, 1752 in the United States, and even more
+embarrassingly late in Norway.
+
+Not mention above is the need for millisecond resolution. Most events
+on modern computers fall within the same second, so it is now
+necessary to separate them by increasing the granularity of the clock
+representation. This part is obviously optional in most time
+processing functions.
+
+The ~LOCAL-TIME~ concept therefore represents time as three disjoint fixnums:
+
+    1) the number of days since (or until, when negative) ~2000-03-01~
+    2) the number of seconds since the start of the day in Coordinated Universal Time
+    3) the number of milliseconds since the start of the second.
+
+All numbers have origin 0. Only the number of days may be negative.
+
+The choice of epoch needs some more explanation. Conversion to this
+system only requires subtracting two from the month and making January
+and February part of the previous year.
+
+The moderate size of the fixnums allows us another enormous advantage
+over customary ways to represent time. Since the leap year is now
+always at the end of the year, it has no bearing on the decoding of
+the year, month, day, and day-of-week of the date. By choosing this
+odd-looking epoch, the entire problem with computing leap years and
+days evaporates. This also means that a single, moderately large table
+of decoded date elements may be pre-computed for 400 years, providing
+a tremendous speed-up over the division-based calculations used by
+other systems.  Similarly, a table of the decoded values of the 86400
+possible seconds in a day (86401 if we allow leap seconds) yields a
+tremendous speedup over division-based calculations. (Depending on
+your processor and memory speeds, a factor of 10 to 50 may be
+expected. for a complete decoding)
+
+* 8.2 Timezone Representation
+
+David Olsen of Digital Equipment Corporation has laid down a
+tremendous amount of work in collecting the timezones of the world and
+their daylight saving time boundaries. Contrary to the Unix System V
+approach from New Jersey (insert appropriate booing for best effect),
+which codifies a daylight saving time regime only for the current
+year, and apply it to all years, David Olsen's approach is to maintain
+tables of all the timezone changes. A particular timezone thus has a
+fairly long table of periods of applicability of the specific number
+of seconds of to add to get local time. Each interval is represented
+by the start and end times of the specific value, the specific value,
+a daylight saving time flag, and the customary abbreviation of the
+timezone. On most Unix systems, this is available in compiled files in
+~/usr/share/zoneinfo/~ under names based on the continent and capital of
+the region in most cases, or more general names in other cases. While
+not perfect, this is probably a scheme good as any -- it is fairly
+easy to figure out which to use. Usually, a table is also provided
+with geographic coordinates mapped to the timezone file.
+
+For the timezone information, the ~LOCAL-TIME~ concept implements a
+package, ~TZ~, or ~TIMEZONE~ in full, which contains symbols named after
+the files, whose values are lazy-loaded timezone objects. Because the
+source files for the zoneinfo files are generally not as available as
+the portably coded binary information, the information are loaded into
+memory from the compiled files, thus maintaining maximum compatibility
+with the other timezone functions on the system.
+
+In the ~LOCAL-TIME~ instances, the timezone is represented as a symbol
+to aid in the ability to save literal time objects in compiled Lisp
+files. The package ~TZ~ can easily be autoloaded in systems that support
+such facilities, in order to reduce the load-order complexity.
+
+In order to increase efficiency substantially once again, each
+timezone object holds the last few references to timezone periods in
+it, in order to limit the search time. Empirical studies of
+long-running systems have showed that more than 98% of the lookups on
+a given timezone were for time in the same period, with more than 80%
+of the remaining lookups at the neighboring periods, so caching these
+values made ample sense.
+
+8.3 Efficiency Considerations in Table Storage
+
+In order to store 146,072 entries for the days of a 400-year cycle
+with the decoded year, month, day, and day-of-week and 86401 entries
+for the seconds of a day with the decoded hour, minute and second
+efficiently, various optimizations were employed. The naïve approach,
+to uses lists, consumes approximately 6519K on a 32-bit machine. Due
+to their overhead, vectors did worse. Since the decoded elements are
+small, well-behaved unsigned integers, encoding them in bit fields
+within a fixnum turns out to save a lot of memory:
+
+
+    | yyyy | mm | day | dow |   | hour | min | sec |
+    |------+----+-----+-----+---+------+-----+-----|
+    |   10 |  4 |   5 |   3 |   |    5 |   6 |   6 |
+
+This simple optimization meant 7 times more compact storage of the
+exact same data, with significantly improved access times, to boot
+(depending on processor and memory speeds as well as considerations
+for caching strategies, a factor of 1.5 to 3 has been measured in
+production).
+
+Still, 909K of storage to keep tables of precomputed dates and times
+may seem a steep price to pay for the improved
+performance. Unsurprisingly, more empirical evidence confirmed that
+most dates decoded were in the same century. Worst case over the next
+few years, we will access two centuries frequently, but it is still a
+waste to store four full centuries. A reduction to 100 years per table
+also meant the number of years were representable in 7 bits, meaning
+that an specialized vector of type (UNSIGNED-BYTE 16) could represent
+them all. The day of week would be lost in this optimization, but a
+specialized vector of type (UNSIGNED-BYTE 4) of the full length
+(146097) could hold them if a single division to get the day of week
+was too expensive. It turns out that the day of week is much less used
+than the other decoded elements, so the specialized vector was dropped
+and an option included with the call to the decoder to skip the day of
+week.
+
+Similarly, by representing only 12 hours in a specialized vector of
+type (UNSIGNED-BYTE 16), the hour would need only 4 bits and the
+lookup could do the 12-hour shift in code. This reduces the table
+memory needs to only 156K, and it is still faster than access to the
+full list representation. This compaction yields almost a factor 42
+improvement over the naïve approach
+
+For completeness, the bit field layout is now simplified as follows.
+
+:    +-------+----+-----+     +----+------+------+
+:   | 0-100 |1-12| 1-31|     |0-11| 0-59 | 0-59 |
+:    +-------+----+-----+     +----+------+------+
+:        7      4    5           4     6      6
+
+Decoding the day now means finding the 400-year cycle for the day of
+week, the century within it for the table lookup, and adding together
+the values of the centuries and the year from the table, which may be
+100 to represent January and February of the following century. All of
+this can be done with very inexpensive fixnum operations for about
+2,939,600 years, after which the day will incur a bignum subtraction
+to bring it into fixnum space for the next 2,939,600> years. (This
+optimization has not actually been implemented.)
+
+* 9 Reading and Printing Time
+
+Common Lisp is renowned for the ability to print and read back almost
+all of its data types. The motivation for the LOCAL-TIME concept
+included the ability to save human-readable timestamps in files, as
+well as the ability to store literal time objects efficiently in
+compiled Lisp files. The former has been accomplished through the use
+of the reader macros. Ignoring all other possible uses of the @
+character, it was chosen to be the reader macro for the full
+representation of a ~LOCAL-TIME~ object. Considering the prevalence of
+software that works with the ~UNIVERSAL-TIME~ concept, especially in
+light of the lack of alternatives until now, #@ was chosen to be the
+reader macro for the UNIVERSAL-TIME representation of a time
+object. This latter notation obviously loses the original time zone
+information and any milliseconds.  
+
+** 9.1 Timestring Syntax
+
+The Lisp reader is instructed to parse a timestring following the
+reader macro characters. Other functions may call ~PARSE-TIMESTRING~
+directly. Such a timestring follows ISO 8601 closely, but allows for a
+few enhancements and an additional option: the ability to choose
+between comma and period for the fractional second delimiter.
+
+Supported formats of the timestring syntax include
+
+    1) absolute time with all elements, the default printed format
+    2) absolute time with some elements omitted, as per ISO 8601
+    3) absolute time with date omitted, defaulting to the current
+    4) absolute time with time omitted, defaulting to 00:00:00Z.
+    5) the most recent occurrence of a time of day, with a leading <.
+    6) the forthcoming occurrence of a time of day, with a leading >.
+    7) the time of day specified, but yesterday, with a leading -.
+    8) the time of day specified, but tomorrow, with a leading +.
+    9) the current time of day, with a single =.
+
+Work in progress includes adding and subtracting a duration from the
+specified time, such as the present, explaining the use of the =,
+which is also needed to represent periods with one anchor at the
+present. The duration syntax is, however, rife with assumptions that
+are fairly hard to express concisely and to use without causing
+unexpected and unwanted results.
+
+The standard syntax from ISO 8601 is fairly rich with options. These
+are mostly unsupported due to the ambiguity they introduce. The goal
+with the timestring syntax is that positions and periods of time shall
+be so easy to read and write in an information-preserving syntax that
+there will be no need to cater to the information-losing formats
+preferred by some only because of their attempt at similarity to their
+spoken forms.
+
+** 9.2 Formatting Timestrings
+
+Considering that the primary problem with time formats is randomness
+in the order of the elements, the timestring formatter for LOCAL-TIME
+objects allows no options in that regard, but allows elements to be
+omitted as per the standard. The loss of 12-hour clocks will annoy a
+few people for a time, but there is nothing quite like shaking a bad
+habit for good. Of course, the persistent programmer will write his
+own formatter, anyway, so the default should be made most sensible for
+representing time in programs and in lisp-oriented input files.
+
+At present, the interface to the timestring formatter is well suited
+for a call from FORMAT control strings with the ~// construct, and
+takes arguments a follows:
+
+    1) ~stream~ -- the stream to receive the formatter timestring
+    2) ~local-time~ -- the ~LOCAL-TIME~ instance
+    3) ~universal~ -- if true, ignore the timezone and use UTC>. This
+       is the colon modifier.
+    4) ~timezone~ -- if true, print a timezone specification at the
+       end. This is the atsign modifier.
+    5) ~date-elements~ -- the number of elements of the date to write,
+       counted from the right. This is a number from 0 to 4 (the
+       default if omitted or NIL).
+    6) ~time-elements~ -- the number of elements of the time to write,
+       counted from the left. This is a number from 0 to 4 (the
+       default if omitted or ~NIL~).
+    7) ~date-separator~ -- the character to print between elements of
+       the date. If omitted or NIL, defaults to the hyphen.
+
+    8) ~time-separator~ -- the character to print between elements of
+       the time. If omitted or NIL, defaults to the colon. This
+       argument also applies to the timezone when it is printed, and
+       when it has a minute component.
+    9) ~internal-separator~ -- the character to print between the date
+       and the time elements. May also be specified as the number 0,
+       to omit it entirely, which is the default if either the date or
+       the time elements are entirely omitted, or the letter T
+       otherwise.
+
+
+
+** 9.3 Exported LOCAL-TIME Symbols
+
+    + ~LOCAL-TIME~
+      [Type]
+      [Constructor] Arguments: (&key universal internal unix (msec 0) (zone 0).
+      
+      Produce a LOCAL-TIME instance from the provided numeric time
+      representation.
+    + ~MAKE-LOCAL-TIME~
+       [Constructor] Arguments: (&key day sec msec zone)
+    + ~LOCAL-TIME-DAY~
+    + ~LOCAL-TIME-SEC~
+    + ~LOCAL-TIME-MSEC~
+    + ~LOCAL-TIME-ZONE~
+       [Accessors]
+    + ~LOCAL-TIME<~
+    + ~LOCAL-TIME<=~
+    + ~LOCAL-TIME>~
+    + ~LOCAL-TIME>=~
+    + ~LOCAL-TIME=~
+    + ~LOCAL-TIME/=~
+       [Functions] Comparison, just like STRING<op>.
+
+    + ~LOCAL-TIME-ADJUST~
+      [Function] Arguments: (source timezone &optional destination)
+      Returns two values, the values of new day and sec slots, or, if destination is a LOCAL-TIME instance, fills the slots with the new values and returns the destination.
+    + ~LOCAL-TIME-DESIGNATOR~
+      [Function] Convert a designator (real number) into a LOCAL-TIME instance.
+    + ~GET-LOCAL-TIME~
+      [Function] Return the current time as a LOCAL-TIME instance.
+    + ~ENCODE-LOCAL-TIME~ 
+
+      [Function] Arguments: (ms ss mm hh day month year &optional
+      timezone) Return a new LOCAL-TIME instance corresponding to the
+      specified time elements.
+
+    + ~DECODE-LOCAL-TIME~
+       [Function] Argument: (local-time)
+      
+        Returns the decoded time as multiple values: ms, ss, mm, hh,
+      day, month, year, day-of-week, daylight-saving-time-p, timezone,
+      and the customary timezone abbreviation.
+
+    + ~PARSE-TIMESTRING~
+       [Function] Arguments: (timestring &key start end junk-allowed)
+       Parse a timestring and return the corresponding LOCAL-TIME.
+    + ~FORMAT-TIMESTRING~ 
+
+      [Function] Arguments: (stream local-time universal-p timezone-p
+      date-elements time-elements date-separator time-separator
+      internal-separator) Produces on stream the timestring
+      corresponding to the LOCAL-TIME with the given options.
+
+    + ~UNIVERSAL-TIME~
+       [Function] Return the UNIVERSAL-TIME corresponding to the LOCAL-TIME.
+    + ~INTERNAL-TIME~ 
+       [Function] Return the internal system time corresponding to the LOCAL-TIME.
+    +  ~UNIX-TIME~
+       [Function] Return the Unix time corresponding to the LOCAL-TIME.
+    + ~TIMEZONE~ [Function] Arguments: (local-time &optional timezone)
+      Return as multiple values the time zone as the number of seconds
+      east of UTC, a boolean daylight-saving-p, the customary
+      abbreviation of the timezone, the starting time of this
+      timezone, and the ending time of this timezone
+    + ~LOCAL-TIMEZONE~ 
+
+       [Function] Arguments: (adjusted-local-time &optional timezone)
+
+       Return the local timezone adjustment applicable at the already
+      adjusted-local-time. Used to reverse the effect of TIMEZONE and
+      LOCAL-TIME-ADJUST.
+    + ~DEFINE-TIMEZONE~ 
+
+      [Macro] Arguments: (zone-name zone-file &key load) 
+
+      Define zone-name (a symbol or a string) as a new timezone,
+      lazy-loaded from zone-file (a pathname designator relative to
+      the zoneinfo directory on this system). If load is true, load
+      immediately.
+    + ~*DEFAULT-TIMEZONE*~ [Variable] Holds the default timezone for
+      all time operations needing a default.
+
+Copyright © 1999, 2009 Erik Naggum

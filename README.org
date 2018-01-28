@@ -1,0 +1,19 @@
+:local-time
+
+See the "INSTALL" file for information about building and installing
+this library.
+
+The :local-time package is a gerbil library for the manipulation of
+dates and times.  It is based almost entirely upon Erik Naggum's paper
+"The Long Painful History of Time". See it [[file:doc/the-long-painful-history-of-time.org][here.]]
+
+See the "LICENSE" file for the license, or lack thereof.
+
+Related projects of interest:
+ * http://common-lisp.net/project/local-time/
+ * https://common-lisp.net/project/local-time/manual.html
+ * https://github.com/enaeher/local-time-duration
+ * http://common-lisp.net/projects/cl-l10n/
+
+
+
