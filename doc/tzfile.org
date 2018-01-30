@@ -355,7 +355,6 @@ with ~\0~.
 man tzfile
 #+END_SRC
 
-#+RESULTS:
 #+begin_example
 TZFILE(5)                  Linux Programmer's Manual                 TZFILE(5)
 
