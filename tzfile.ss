@@ -1,9 +1,9 @@
 ;;; -*- Gerbil -*-
 (export #t)
-(import :clan/utils/base :std/srfi/13 :gerbil/gambit)
+(import :clan/base :std/srfi/13 :gerbil/gambit)
 
-(defclass tzfile 
-  (magic version header 
+(defclass tzfile
+  (magic version header
    transition-times transition-time-index
    ttinfo-structures
    timezone-abbreviation-array
@@ -36,7 +36,7 @@
 (def (tzread-long p)
   (signed<-unsigned (tzread p 4 integer<-big-endian) 4))
 
-(defstruct ttinfo 
+(defstruct ttinfo
   (gmt-offset is-dst abbreviation-index))
 
 (def (tzread-ttinfo p)
@@ -56,7 +56,7 @@
          (cons (substring/shared  b 0 index)
                (buf (substring/shared b (+ 1 index)))))))
   (make-abbrev-array
-   (tzread p abbreviation-length bytes->string)))    
+   (tzread p abbreviation-length bytes->string)))
 
 (def (read-tzfile tzfile)
   (call-with-input-file tzfile
@@ -65,7 +65,7 @@
              ;; The magic four-byte sequence "TZif" identifying this as a timezone
              ;; information file.
              (magic (tzread p 4 bytes->string))
-             
+
              ;; A single character identifying the version of the
              ;; file's format:
              ;; either an ASCII NUL ('\0') or a '2' (0x32).
@@ -85,7 +85,7 @@
              ;; tzh_ttisstdcnt
              ;;        The number of standard/wall indicators stored in the file.
              (wall-count (tzread-long p))
-         
+
 
              ;; tzh_leapcnt
              ;;  The number of leap seconds for which data is  stored  in  the
@@ -93,13 +93,13 @@
              (leap-count (tzread-long p))
 
              ;; tzh_timecnt
-           
+
              ;; The number of "transition times" for which
              ;;  data is stored in the file.
              (transition-count (tzread-long p))
 
              ;; tzh_typecnt
-           
+
              ;; The number of "local time types" for which data is stored
              ;; in the file (must not be zero).
 
@@ -138,8 +138,8 @@
                 (cons (tzread-ttinfo p)
                       (if (= 1 times) '()
                           (loop (- times 1))))))
-           
-           
+
+
              ;; Then there are tzh_leapcnt pairs of four-byte values,
              ;; written in standard byte order; the first value of each
              ;; pair gives the time (as returned by time(2)) at which a
@@ -165,8 +165,8 @@
         ;; each stored as a one-byte value
 
         (utc-indicators
-         (tzread p utc-count)))                      
-           
+         (tzread p utc-count)))
+
       (make-tzfile
        magic: magic version: version
        header: (list future: future

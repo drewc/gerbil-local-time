@@ -18,7 +18,7 @@ files—one per time zone."
 
 * ~tzfile~ class
 
-Down at the bottom of ~man tzfile~ it states: 
+Down at the bottom of ~man tzfile~ it states:
 
 #+BEGIN_SRC text
   Summary of the timezone information file format
@@ -42,8 +42,8 @@ Thus, that can be used to define the class.
 
 #+name: defclass-tzfile
 #+BEGIN_SRC scheme
-  (defclass tzfile 
-    (magic version header 
+  (defclass tzfile
+    (magic version header
      transition-times transition-time-index
      ttinfo-structures
      timezone-abbreviation-array
@@ -84,7 +84,7 @@ We can test it using "/etc/localtime".
 
 At some point in the ~man~ page it says.
 
-   : a  "standard"  byte order  
+   : a  "standard"  byte order
    :  (the  high-order  byte of the value is written first)
 
 So, it's big-endian.
@@ -151,9 +151,9 @@ The docs say "type long, in a standard byte order". That defaults to a
 
 Using that, it is trivial to gerbilize.
 
-#+NAME: defstruct-ttinfo 
+#+NAME: defstruct-ttinfo
 #+BEGIN_SRC scheme
-  (defstruct ttinfo 
+  (defstruct ttinfo
     (gmt-offset is-dst abbreviation-index))
 
   (def (tzread-ttinfo p)
@@ -184,7 +184,7 @@ with ~\0~.
            (cons (substring/shared  b 0 index)
                  (buf (substring/shared b (+ 1 index)))))))
     (make-abbrev-array
-     (tzread p abbreviation-length bytes->string)))    
+     (tzread p abbreviation-length bytes->string)))
 #+END_SRC
 
 
@@ -200,7 +200,7 @@ with ~\0~.
                ;; The magic four-byte sequence "TZif" identifying this as a timezone
                ;; information file.
                (magic (tzread p 4 bytes->string))
-               
+
                ;; A single character identifying the version of the
                ;; file's format:
                ;; either an ASCII NUL ('\0') or a '2' (0x32).
@@ -220,7 +220,7 @@ with ~\0~.
                ;; tzh_ttisstdcnt
                ;;        The number of standard/wall indicators stored in the file.
                (wall-count (tzread-long p))
-           
+
 
                ;; tzh_leapcnt
                ;;  The number of leap seconds for which data is  stored  in  the
@@ -228,13 +228,13 @@ with ~\0~.
                (leap-count (tzread-long p))
 
                ;; tzh_timecnt
-             
+
                ;; The number of "transition times" for which
                ;;  data is stored in the file.
                (transition-count (tzread-long p))
 
                ;; tzh_typecnt
-             
+
                ;; The number of "local time types" for which data is stored
                ;; in the file (must not be zero).
 
@@ -273,8 +273,8 @@ with ~\0~.
                   (cons (tzread-ttinfo p)
                         (if (= 1 times) '()
                             (loop (- times 1))))))
-             
-             
+
+
                ;; Then there are tzh_leapcnt pairs of four-byte values,
                ;; written in standard byte order; the first value of each
                ;; pair gives the time (as returned by time(2)) at which a
@@ -300,8 +300,8 @@ with ~\0~.
           ;; each stored as a one-byte value
 
           (utc-indicators
-           (tzread p utc-count)))                      
-             
+           (tzread p utc-count)))
+
         (make-tzfile
          magic: magic version: version
          header: (list future: future
@@ -330,7 +330,7 @@ with ~\0~.
 #+BEGIN_SRC scheme :tangle "../tzfile.ss" :noweb yes :padline no
 ;;; -*- Gerbil -*-
 (export #t)
-(import :clan/utils/base :std/srfi/13 :gerbil/gambit)
+(import :clan/base :std/srfi/13 :gerbil/gambit)
 
 <<defclass-tzfile>>
 
@@ -349,7 +349,7 @@ with ~\0~.
 <<read-tzfile>>
 #+END_SRC
 
-* man tzfile 
+* man tzfile
 
 #+BEGIN_SRC sh :results output example
 man tzfile
@@ -542,10 +542,10 @@ COLOPHON
                                   2015-05-07                         TZFILE(5)
 #+end_example
 
-* HACKING 
+* HACKING
 #+BEGIN_SRC scheme
 
-  (import :clan/utils/base :std/srfi/13)
+  (import :clan/base :std/srfi/13)
 
   (def tzfile
     ;"/home/drewc/quicklisp/dists/quicklisp/software/local-time-20170830-git/zoneinfo/Africa/Abidjan"
@@ -603,7 +603,7 @@ COLOPHON
          (cons (substring/shared  b 0 index)
                (buf (substring/shared b (+ 1 index)))))))
 
-    
+
   (call-with-input-file tzfile
     (λ (p)
       (let* (
@@ -630,7 +630,7 @@ COLOPHON
              ;; tzh_ttisstdcnt
              ;;        The number of standard/wall indicators stored in the file.
              (wall-count (tzread-long p))
-           
+
 
              ;; tzh_leapcnt
              ;;  The number of leap seconds for which data is  stored  in  the
@@ -638,13 +638,13 @@ COLOPHON
              (leap-count (tzread-long p))
 
              ;; tzh_timecnt
-             
+
              ;; The number of "transition times" for which
              ;;  data is stored in the file.
              (transition-count (tzread-long p))
 
              ;; tzh_typecnt
-             
+
              ;; The number of "local time types" for which data is stored
              ;; in the file (must not be zero).
 
@@ -683,8 +683,8 @@ COLOPHON
                 (cons (tzread-info p)
                       (if (= 1 times) '()
                           (loop (- times 1))))))
-             
-             
+
+
              ;; Then there are tzh_leapcnt pairs of four-byte values,
              ;; written in standard byte order; the first value of each
              ;; pair gives the time (as returned by time(2)) at which a
@@ -712,14 +712,14 @@ COLOPHON
 
              (utc-indicators
               (tzread p utc-count)))
-              
-
-             
-
-              
 
 
-             
+
+
+
+
+
+
         (values (list magic: magic version: version
                       transition-times: transition-times
                       transition-indices: transition-indices
@@ -737,11 +737,11 @@ COLOPHON
                       abbreviation-string-length: abbreviation-string-length
                       )))
   ))
-            
 
 
-           
 
-            
+
+
+
 
 #+END_SRC
