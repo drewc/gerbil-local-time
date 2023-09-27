@@ -1,6 +1,9 @@
 ;;; -*- Gerbil -*-
 (export #t)
-(import :clan/base :std/srfi/13 :gerbil/gambit)
+(import
+   :std/misc/bytes
+   :std/srfi/13
+   :clan/base)
 
 (defclass tzfile
   (magic version header
@@ -12,37 +15,22 @@
    utc-array))
 
 (def (tzread port byte-count (function identity))
-    (let (bytes (make-bytes byte-count))
-      (read-bytes bytes port)
-      (function bytes)))
+    (let (u8vector (make-u8vector byte-count))
+      (read-u8vector u8vector port)
+      (function u8vector)))
 
-(def (integer<-big-endian bytes)
-  (def list (bytes->list bytes))
-  (let loop ((list list)
-             (result 0)
-             (shift (* 8 (- (length list) 1))))
-    (if (null? list)
-      result
-      (loop (cdr list)
-            (bitwise-ior result (arithmetic-shift (car list) shift))
-            (- shift 8)))))
-
-(def (signed<-unsigned number orig-size)
-   (let ((max (inexact->exact (- (floor (/ (expt 2 (* orig-size 8)) 2)) 1))))
-     (if (> number max)
-       (- number (* 2 (+ 1 max)))
-       number)))
-
-(def (tzread-long p)
-  (signed<-unsigned (tzread p 4 integer<-big-endian) 4))
+(def (read-u32 p)
+  (tzread p 4 u8vector->nat))
+(def (read-s32 p)
+  (tzread p 4 u8vector->integer))
 
 (defstruct ttinfo
   (gmt-offset is-dst abbreviation-index))
 
 (def (tzread-ttinfo p)
-  (let* ((g (tzread-long p))
-         (d (read-byte p))
-         (a (tzread p 1 integer<-big-endian)))
+  (let* ((g (read-s32 p))
+         (d (read-u8 p))
+         (a (read-u8 p)))
     (make-ttinfo g d a)))
 
 (def (tzread-abbreviations p abbreviation-length)
@@ -80,36 +68,36 @@
 
              ;; tzh_ttisgmtcnt
              ;;    The number of UTC/local indicators stored in the file.
-             (utc-count (tzread-long p))
+             (utc-count (read-s32 p))
 
              ;; tzh_ttisstdcnt
              ;;        The number of standard/wall indicators stored in the file.
-             (wall-count (tzread-long p))
+             (wall-count (read-s32 p))
 
 
              ;; tzh_leapcnt
              ;;  The number of leap seconds for which data is  stored  in  the
              ;;  file.
-             (leap-count (tzread-long p))
+             (leap-count (read-s32 p))
 
              ;; tzh_timecnt
 
              ;; The number of "transition times" for which
              ;;  data is stored in the file.
-             (transition-count (tzread-long p))
+             (transition-count (read-s32 p))
 
              ;; tzh_typecnt
 
              ;; The number of "local time types" for which data is stored
              ;; in the file (must not be zero).
 
-             (type-count (tzread-long p))
+             (type-count (read-s32 p))
 
              ;; tzh_charcnt
              ;; The  number  of characters of "timezone abbreviation strings"
              ;; stored in the file.
 
-             (abbreviation-length (tzread-long p))
+             (abbreviation-length (read-s32 p))
 
 
              ;; The above header is followed by tzh_timecnt four-byte
@@ -118,7 +106,7 @@
              (transition-times
               (let loop ((times transition-count))
                 (if (zero? times) '()
-                    (cons (tzread-long p)
+                    (cons (read-s32 p)
                           (loop (- times 1))))))
 
              ;; Next come tzh_timecnt one-byte values of type unsigned
@@ -127,7 +115,7 @@
              (transition-indices
               (let loop ((times transition-count))
                 (if (zero? times) '()
-                    (cons (read-byte p)
+                    (cons (read-u8 p)
                           (loop (- times 1))))))
 
              ;; These values serve as indices into an array of ttinfo
@@ -148,8 +136,8 @@
              (leap-seconds
               (let loop ((times leap-count))
                 (if (zero? times) '()
-                    (cons (cons (tzread p 4 integer<-big-endian)
-                                (tzread p 4 integer<-big-endian))
+                    (cons (cons (read-u32 p)
+                                (read-u32 p))
                           (loop (- times 1))))))
 
              ;; array of timezone  abbreviation  characters
